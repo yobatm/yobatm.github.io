@@ -3,186 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatGPT con Generación de Imágenes</title>
+    <title>API Chat y Generador de Imágenes</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            background-color: #f4f4f4;
             margin: 0;
             padding: 20px;
         }
-        #chat-container {
+        #chat {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
-            margin: auto;
-            padding: 20px;
-            position: relative;
-            overflow-y: auto;
-            height: 500px;
-        }
-        .message {
-            margin: 10px 0;
+            border: 1px solid #ccc;
             padding: 10px;
-            border-radius: 5px;
-            max-width: 70%;
+            max-width: 600px;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        .user {
-            background-color: #d1e7dd;
-            align-self: flex-end;
+        #messages {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #fafafa;
         }
-        .assistant {
-            background-color: #f8d7da;
-            align-self: flex-start;
-        }
-        #input-container {
+        #inputArea {
             display: flex;
-            margin-top: 15px;
-            position: relative;
+            justify-content: space-between;
         }
-        #input {
+        input[type="text"] {
             flex: 1;
             padding: 10px;
             border: 1px solid #ccc;
-            border-radius: 4px;
         }
-        #send, #generate-image {
-            background-color: #007bff;
+        button {
+            padding: 10px;
+            background-color: #007BFF;
             color: white;
             border: none;
-            border-radius: 4px;
-            padding: 10px 15px;
-            margin-left: 10px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background 0.3s;
         }
-        #send:hover, #generate-image:hover {
+        button:hover {
             background-color: #0056b3;
         }
-        #drawer {
+        .drawer {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 300px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: -3px 0 5px rgba(0,0,0,0.3);
+            transition: right 0.3s;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .drawer.open {
+            right: 0;
+        }
+        .overlay {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
-            width: 300px;
+            width: 100%;
             height: 100%;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
-            padding: 20px;
-            z-index: 1000;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 900;
         }
-        .drawer-open {
+        .overlay.active {
             display: block;
         }
     </style>
 </head>
 <body>
+    <div id="chat">
+        <h2>Chat Con la API</h2>
+        <div id="messages"></div>
+        <div id="inputArea">
+            <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí...">
+            <button id="sendButton">Enviar</button>
+            <button id="imageButton">Generar Imagen</button>
+        </div>
+    </div>
+    <div class="drawer" id="drawer">
+        <h3>Cambiar System Prompt</h3>
+        <textarea id="systemPrompt" rows="4" placeholder="Escribe el nuevo system prompt aquí..."></textarea>
+        <button id="savePrompt">Guardar Prompt</button>
+    </div>
+    <div class="overlay" id="overlay"></div>
 
-<div id="chat-container">
-    <div id="messages"></div>
-</div>
-
-<div id="input-container">
-    <input type="text" id="input" placeholder="Escribe tu mensaje..."/>
-    <button id="send">Enviar</button>
-    <button id="generate-image">Generar Imagen</button>
-</div>
-
-<div id="drawer">
-    <h3>Cambiar System Prompt</h3>
-    <input type="text" id="new-system-prompt" placeholder="Nuevo system prompt..." />
-    <button id="apply-prompt">Aplicar</button>
-</div>
-
-<button id="toggle-drawer">Cambiar System Prompt</button>
-
-<script>
-    const messages = [{"role": "system", "content": "Eres chatgpt"}];
-    const private = true;
-    const model = "gpt-4o";
-
-    document.getElementById('send').onclick = function () {
-        const input = document.getElementById('input');
-        const message = {role: "user", content: input.value};
-        messages.push(message);
-        input.value = '';
-        appendMessage(message);
-        fetchResponse("Eres chatgpt", messages);
-    };
-
-    document.getElementById('generate-image').onclick = function () {
-        const input = document.getElementById('input');
-        const message = {role: "user", content: input.value};
-        messages.push(message);
-        input.value = '';
-        appendMessage(message);
-        fetchImage("Eres un generador de prompts para generador de imagenes con ia", message.content);
-    };
-
-    function appendMessage(message) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${message.role}`;
-        messageDiv.innerText = message.content;
-        document.getElementById('messages').appendChild(messageDiv);
-        document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
-    }
-
-    async function fetchResponse(system, messages) {
-        const response = await fetch('https://text.pollinations.ai/openai', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({system, messages, private, model})
-        });
-        const data = await response.json();
-        const assistantMessage = data.choices[0].message.content;
-        messages.push({role: "assistant", content: assistantMessage});
-        appendMessage({role: "assistant", content: assistantMessage});
-    }
-
-    async function fetchImage(system, prompt) {
-        const response = await fetch('https://text.pollinations.ai/openai', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({system, messages: [{role: "user", content: prompt}], private, model})
-        });
-        const data = await response.json();
-        const description = prompt;
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(description)}?private=true&nologo=true`;
-        appendMessage({role: "assistant", content: `<img src="${imageUrl}" alt="Imagen generada para: ${description}" width="300" height="200">`});
-        appendHtmlImage(imageUrl);
-    }
-
-    function appendHtmlImage(imageUrl){
-        const imgDiv = document.createElement('div');
-        imgDiv.innerHTML = `<img src="${imageUrl}" alt="Imagen generada" width="300" height="200">`;
-        document.getElementById('messages').appendChild(imgDiv);
-        document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
-    }
-
-    document.getElementById('toggle-drawer').onclick = function() {
-        document.getElementById('drawer').classList.toggle('drawer-open');
-    };
-
-    document.getElementById('apply-prompt').onclick = function() {
-        const newSystemPrompt = document.getElementById('new-system-prompt').value;
-        if (newSystemPrompt) {
-            messages.unshift({"role": "system", "content": newSystemPrompt});
-            document.getElementById('drawer').classList.remove('drawer-open');
-        }
-    };
-
-    document.addEventListener('click', function(event) {
+    <script>
+        const API_URL = "https://text.pollinations.ai/openai";
+        let messages = [{"role": "system", "content": "Eres chatgpt"}];
         const drawer = document.getElementById('drawer');
-        if (event.target !== drawer && !drawer.contains(event.target)) {
-            drawer.classList.remove('drawer-open');
-        }
-    });
+        const overlay = document.getElementById('overlay');
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
 
-</script>
+        document.getElementById('sendButton').addEventListener('click', () => {
+            const userMessage = userInput.value;
+            if (userMessage) {
+                messages.push({"role": "user", "content": userMessage});
+                sendRequest("Eres chatgpt", messages);
+                userInput.value = '';
+            }
+        });
+
+        document.getElementById('imageButton').addEventListener('click', () => {
+            const userMessage = userInput.value;
+            if (userMessage) {
+                const newSystem = "Eres un generador de prompts para generador de imagenes con ia, el siguiente mensaje es el prompt";
+                sendImageRequest(newSystem, userMessage);
+                userInput.value = '';
+            }
+        });
+
+        document.getElementById('savePrompt').addEventListener('click', () => {
+            const newPrompt = document.getElementById('systemPrompt').value;
+            if (newPrompt) {
+                messages[0].content = newPrompt;
+                closeDrawer();
+            }
+        });
+
+        overlay.addEventListener('click', () => {
+            closeDrawer();
+        });
+
+        function sendRequest(system, messages) {
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    private: true,
+                    model: "gpt-4o",
+                    messages: [{"role": "system", "content": system}, ...messages]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const assistantMessage = data.choices[0]["message"]["content"];
+                messages.push({"role": "assistant", "content": assistantMessage});
+                renderMessages();
+            });
+        }
+
+        function sendImageRequest(system, prompt) {
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    private: true,
+                    model: "gpt-4o",
+                    messages: [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const imagePrompt = prompt;
+                const encodedPrompt = encodeURIComponent(imagePrompt);
+                const imageURL = `https://image.pollinations.ai/prompt/${encodedPrompt}?private=true&nologo=true`;
+                messages.push({"role": "assistant", "content": `<img src="${imageURL}" alt="${imagePrompt}" width="300" height="200">`});
+                renderMessages();
+            });
+        }
+
+        function renderMessages() {
+            messagesDiv.innerHTML = messages.map(msg => 
+                `<div>${msg.role === 'user' ? 'Tú: ' : 'Asistente: '}${msg.content}</div>`
+            ).join('');
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function closeDrawer() {
+            drawer.classList.remove('open');
+            overlay.classList.remove('active');
+        }
+
+        // Open the drawer (you can add a button to open it)
+        document.body.addEventListener('keydown', (e) => {
+            if (e.key === 'D') {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        });
+    </script>
 </body>
 </html>
